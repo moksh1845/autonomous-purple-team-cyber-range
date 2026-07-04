@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: purple_team_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/purple_team_db
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      WAZUH_HOST: ${WAZUH_HOST}
+      WAZUH_USER: ${WAZUH_USER:-wazuh}
+      WAZUH_PASSWORD: ${WAZUH_PASSWORD:?Set WAZUH_PASSWORD in .env}
+      WAZUH_VERIFY_SSL: "false"
+      INDEXER_HOST: ${INDEXER_HOST}
+      INDEXER_USER: ${INDEXER_USER:-admin}
+      INDEXER_PASSWORD: ${INDEXER_PASSWORD:?Set INDEXER_PASSWORD in .env}
+      INDEXER_VERIFY_SSL: "false"
+      CORS_ORIGINS: http://localhost:5173,http://localhost:80,http://localhost:8080
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  collector:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/purple_team_db
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      WAZUH_HOST: ${WAZUH_HOST}
+      WAZUH_USER: ${WAZUH_USER:-wazuh}
+      WAZUH_PASSWORD: ${WAZUH_PASSWORD}
+      WAZUH_VERIFY_SSL: "false"
+      INDEXER_HOST: ${INDEXER_HOST}
+      INDEXER_USER: ${INDEXER_USER:-admin}
+      INDEXER_PASSWORD: ${INDEXER_PASSWORD}
+      INDEXER_VERIFY_SSL: "false"
+    command: python run_collector.py
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:

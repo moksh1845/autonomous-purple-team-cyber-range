@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+
+# Environment Variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+
+# Logs
+*.log
+
+# MITRE ATT&CK STIX bundle (~46MB, downloaded by services/mitre_loader.py)
+backend/data/*.json
+
+# Test artifacts
+backend/.pytest_cache/
+*.db
+*.db-journal
